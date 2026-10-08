@@ -115,7 +115,30 @@ class RRT(object):
         #   - the order in which you pass in arguments to steer_towards and is_free_motion is important
 
         ########## Code starts here ##########
-
+        success = False
+        for i in range(max_iters):
+            self.num_iters = i + 1
+            z = np.random.rand()
+            if z < goal_bias:
+                x_rand = self.x_goal
+            else:
+                x_rand = np.random.uniform(self.statespace_lo,self.statespace_hi)
+            x_near_i = self.find_nearest(V[:n], x_rand)
+            x_near = V[x_near_i]
+            x_new = self.steer_towards(x_near,x_rand, eps)
+            if self.is_free_motion(self.obstacles, x_near, x_new):
+                V[n] = x_new
+                P[n] = x_near_i
+                n += 1
+                if np.array_equal(x_new, self.x_goal):
+                    path = []
+                    index = n - 1
+                    while index != -1:
+                        path.append(V[index])
+                        index = P[index]
+                    self.path = path[::-1]
+                    success = True
+                    break
         ########## Code ends here ##########
 
         if not plot:
@@ -158,7 +181,14 @@ class RRT(object):
             None, but should modify self.path
         """
         ########## Code starts here ##########
-
+        i = 1
+        while i < len(self.path) - 1:
+            prevv = i - 1
+            nextv = i + 1
+            if self.is_free_motion(self.obstacles, self.path[prevv], self.path[nextv]):
+                self.path.pop(i)
+                continue
+            i += 1
         ########## Code ends here ##########
 
 class GeometricRRT(RRT):
@@ -171,7 +201,7 @@ class GeometricRRT(RRT):
         # Consult function specification in parent (RRT) class.
         ########## Code starts here ##########
         # Hint: This should take 1-3 line.
-
+        return np.argmin(np.linalg.norm(np.asarray(V) - x, axis=1))
         ########## Code ends here ##########
         pass
 
@@ -179,7 +209,10 @@ class GeometricRRT(RRT):
         # Consult function specification in parent (RRT) class.
         ########## Code starts here ##########
         # Hint: This should take 1-4 line.
-
+        dist = np.linalg.norm(x2 - x1)
+        if dist < eps:
+            return x2
+        return np.array(x1 + (x2 - x1) / dist * eps)
         ########## Code ends here ##########
         pass
 
@@ -195,4 +228,5 @@ class GeometricRRT(RRT):
 
     def plot_path(self, **kwargs):
         path = np.array(self.path)
+
         plt.plot(path[:,0], path[:,1], **kwargs)
