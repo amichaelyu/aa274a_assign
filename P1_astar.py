@@ -42,9 +42,8 @@ class AStar(object):
         Hint: self.occupancy is a DetOccupancyGrid2D object, take a look at its methods for what might be
               useful here
         """
-        ########## Code starts here ##########
-        raise NotImplementedError("is_free not implemented")
-        ########## Code ends here ##########
+        return self.occupancy.is_free(x) and self.statespace_lo[0] <= x[0] <= self.statespace_hi[0] and self.statespace_lo[1] <= x[1] <= self.statespace_hi[1] 
+
 
     def distance(self, x1, x2):
         """
@@ -59,9 +58,7 @@ class AStar(object):
 
         HINT: This should take one line. Tuples can be converted to numpy arrays using np.array().
         """
-        ########## Code starts here ##########
-        raise NotImplementedError("distance not implemented")
-        ########## Code ends here ##########
+        return np.sqrt(np.sum(np.square(np.array(x1) - np.array(x2))))
 
     def heuristic(self, x):
         """
@@ -79,9 +76,16 @@ class AStar(object):
         HINT: np.linalg.norm accepts an `ord` argument. Raise a ValueError for
               an unrecognized self.heuristic_type.
         """
-        ########## Code starts here ##########
-        raise NotImplementedError("heuristic not implemented")
-        ########## Code ends here ##########
+        x_a = np.array(x)
+        x_goal_a = np.array(self.x_goal)
+        if self.heuristic_type == "l1":
+            return np.sum(np.abs(x_a - x_goal_a)) * self.heuristic_weight
+        elif self.heuristic_type == "l2":
+            return np.sqrt(np.sum(np.square(x_a - x_goal_a))) * self.heuristic_weight
+        elif self.heuristic_type == "linf":
+            return np.linalg.norm(x_a - x_goal_a, ord=np.inf) * self.heuristic_weight
+        else:
+            raise ValueError("unknown self.heuristic_type")
 
     def snap_to_grid(self, x):
         """ Returns the closest point on a discrete state grid
@@ -115,9 +119,13 @@ class AStar(object):
                is computed.
         """
         neighbors = []
-        ########## Code starts here ##########
-        raise NotImplementedError("get_neighbors not implemented")
-        ########## Code ends here ##########
+        for i in range(-1, 2):
+            for j in range (-1, 2):
+                if i == 0 and j == 0:
+                    continue
+                n = self.snap_to_grid((x[0] + i * self.resolution, x[1] + j * self.resolution))
+                if self.is_free(n):
+                    neighbors.append(n)
         return neighbors
 
     def find_best_est_cost_through(self):
@@ -184,9 +192,30 @@ class AStar(object):
                 self.heuristic for the estimated cost-to-go, as in Algorithm 1
                 of the handout.
         """
-        ########## Code starts here ##########
-        raise NotImplementedError("solve not implemented")
-        ########## Code ends here ##########
+        self.open_set.add(self.x_init)
+        self.closed_set = set()
+        self.cost_to_arrive[self.x_init] = 0
+        self.est_cost_through[self.x_init] = self.heuristic(self.x_init) 
+        while len(self.open_set) > 0:
+            x = self.find_best_est_cost_through() 
+            if x == self.x_goal:
+                self.path = self.reconstruct_path()
+                return True
+            self.open_set.discard(x)
+            self.closed_set.add(x)
+            for x_n in self.get_neighbors(x):
+                if x_n in self.closed_set:
+                    continue
+                tenative_cost = self.cost_to_arrive[x] + self.distance(x,x_n)
+                if x_n not in self.open_set:
+                    self.open_set.add(x_n)
+                elif tenative_cost > self.cost_to_arrive[x_n]:
+                    continue
+                self.came_from[x_n] = x
+                self.cost_to_arrive[x_n] = tenative_cost
+                self.est_cost_through[x_n] = tenative_cost + self.heuristic(x_n)
+        return False
+
 
 class DetOccupancyGrid2D(object):
     """
